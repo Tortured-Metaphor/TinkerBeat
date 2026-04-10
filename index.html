@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TinkerBeat</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #0e0e12;
+  color: #e0e0e0;
+  font-family: 'Courier New', monospace;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+h1 {
+  font-size: 1.4rem;
+  font-weight: 300;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.18);
+  margin-bottom: 24px;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.play-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.04);
+  color: #e0e0e0;
+  font-size: 1.4rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, border-color 0.2s;
+}
+.play-btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.3); }
+.play-btn.playing { border-color: #D85A30; color: #D85A30; }
+
+.bpm-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.bpm-control label { font-size: 0.75rem; letter-spacing: 0.1em; color: rgba(255,255,255,0.4); }
+.bpm-control .bpm-value {
+  font-size: 0.9rem;
+  min-width: 38px;
+  text-align: center;
+  color: rgba(255,255,255,0.7);
+}
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.1);
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.5);
+  cursor: pointer;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.5);
+  cursor: pointer;
+  border: none;
+}
+
+.grid-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  max-width: 900px;
+}
+
+.grid-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.row-label {
+  width: 60px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-align: right;
+  padding-right: 8px;
+  flex-shrink: 0;
+}
+
+.pads {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+
+.pad {
+  flex: 1;
+  aspect-ratio: 1;
+  max-width: 48px;
+  border-radius: 4px;
+  background: #1a1a22;
+  border: 1px solid rgba(255,255,255,0.04);
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+  position: relative;
+}
+.pad:active { transform: scale(0.9); }
+.pad.on.kick   { background: #D85A30; box-shadow: 0 0 10px rgba(216, 90, 48, 0.4); border-color: #D85A30; }
+.pad.on.snare  { background: #1D9E75; box-shadow: 0 0 10px rgba(29, 158, 117, 0.4); border-color: #1D9E75; }
+.pad.on.hihat  { background: #EF9F27; box-shadow: 0 0 10px rgba(239, 159, 39, 0.4); border-color: #EF9F27; }
+.pad.on.clap   { background: #7F77DD; box-shadow: 0 0 10px rgba(127, 119, 221, 0.4); border-color: #7F77DD; }
+
+.pad.current-step {
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,0.12);
+}
+.pad.on.current-step.kick  { box-shadow: 0 0 14px rgba(216, 90, 48, 0.6), inset 0 0 0 2px rgba(255,255,255,0.15); }
+.pad.on.current-step.snare { box-shadow: 0 0 14px rgba(29, 158, 117, 0.6), inset 0 0 0 2px rgba(255,255,255,0.15); }
+.pad.on.current-step.hihat { box-shadow: 0 0 14px rgba(239, 159, 39, 0.6), inset 0 0 0 2px rgba(255,255,255,0.15); }
+.pad.on.current-step.clap  { box-shadow: 0 0 14px rgba(127, 119, 221, 0.6), inset 0 0 0 2px rgba(255,255,255,0.15); }
+
+.vol-control {
+  width: 50px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding-left: 8px;
+}
+.vol-control input[type="range"] {
+  width: 100%;
+}
+
+@media (max-width: 600px) {
+  body { padding: 12px; }
+  h1 { font-size: 1rem; margin-bottom: 16px; }
+  .row-label { width: 40px; font-size: 0.55rem; }
+  .pad { max-width: 32px; border-radius: 3px; }
+  .vol-control { width: 36px; }
+  .controls { gap: 14px; }
+}
+</style>
+</head>
+<body>
+
+<h1>TinkerBeat</h1>
+
+<div class="controls">
+  <button class="play-btn" id="playBtn" aria-label="Play / Stop">&#9654;</button>
+  <div class="bpm-control">
+    <label>BPM</label>
+    <input type="range" id="bpmSlider" min="60" max="200" value="120">
+    <span class="bpm-value" id="bpmValue">120</span>
+  </div>
+</div>
+
+<div class="grid-container" id="grid"></div>
+
+<script>
+const VOICES = [
+  { name: 'KICK',  key: 'kick',  color: '#D85A30' },
+  { name: 'SNARE', key: 'snare', color: '#1D9E75' },
+  { name: 'HIHAT', key: 'hihat', color: '#EF9F27' },
+  { name: 'CLAP',  key: 'clap',  color: '#7F77DD' },
+];
+const STEPS = 16;
+const pattern = VOICES.map(() => new Array(STEPS).fill(false));
+const volumes = [0.8, 0.8, 0.8, 0.8];
+
+let audioCtx = null;
+let gainNodes = [];
+let isPlaying = false;
+let currentStep = 0;
+let nextNoteTime = 0;
+let timerID = null;
+let bpm = 120;
+
+// --- Audio Engine ---
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  gainNodes = VOICES.map(() => {
+    const g = audioCtx.createGain();
+    g.gain.value = 0.8;
+    g.connect(audioCtx.destination);
+    return g;
+  });
+}
+
+function playKick(time, dest) {
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(150, time);
+  osc.frequency.exponentialRampToValueAtTime(40, time + 0.12);
+  gain.gain.setValueAtTime(1, time);
+  gain.gain.exponentialRampToValueAtTime(0.001, time + 0.3);
+  osc.connect(gain);
+  gain.connect(dest);
+  osc.start(time);
+  osc.stop(time + 0.3);
+}
+
+function playSnare(time, dest) {
+  // Tone component
+  const osc = audioCtx.createOscillator();
+  const oscGain = audioCtx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.value = 200;
+  oscGain.gain.setValueAtTime(0.7, time);
+  oscGain.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
+  osc.connect(oscGain);
+  oscGain.connect(dest);
+  osc.start(time);
+  osc.stop(time + 0.1);
+
+  // Noise component
+  const bufferSize = audioCtx.sampleRate * 0.2;
+  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+  const noise = audioCtx.createBufferSource();
+  noise.buffer = buffer;
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'bandpass';
+  filter.frequency.value = 3000;
+  filter.Q.value = 1;
+  const noiseGain = audioCtx.createGain();
+  noiseGain.gain.setValueAtTime(0.8, time);
+  noiseGain.gain.exponentialRampToValueAtTime(0.001, time + 0.2);
+  noise.connect(filter);
+  filter.connect(noiseGain);
+  noiseGain.connect(dest);
+  noise.start(time);
+  noise.stop(time + 0.2);
+}
+
+function playHihat(time, dest) {
+  const bufferSize = audioCtx.sampleRate * 0.08;
+  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+  const noise = audioCtx.createBufferSource();
+  noise.buffer = buffer;
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'highpass';
+  filter.frequency.value = 7000;
+  const gain = audioCtx.createGain();
+  gain.gain.setValueAtTime(0.6, time);
+  gain.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
+  noise.connect(filter);
+  filter.connect(gain);
+  gain.connect(dest);
+  noise.start(time);
+  noise.stop(time + 0.08);
+}
+
+function playClap(time, dest) {
+  function burst(t, duration) {
+    const bufferSize = audioCtx.sampleRate * duration;
+    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+    const noise = audioCtx.createBufferSource();
+    noise.buffer = buffer;
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = 1500;
+    filter.Q.value = 0.8;
+    const gain = audioCtx.createGain();
+    gain.gain.setValueAtTime(0.8, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(dest);
+    noise.start(t);
+    noise.stop(t + duration);
+  }
+  burst(time, 0.01);
+  burst(time + 0.03, 0.01);
+  // Tail
+  const tailLen = 0.15;
+  const bufferSize = audioCtx.sampleRate * tailLen;
+  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+  const noise = audioCtx.createBufferSource();
+  noise.buffer = buffer;
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'bandpass';
+  filter.frequency.value = 1500;
+  filter.Q.value = 0.8;
+  const gain = audioCtx.createGain();
+  gain.gain.setValueAtTime(0.5, time + 0.04);
+  gain.gain.exponentialRampToValueAtTime(0.001, time + 0.04 + tailLen);
+  noise.connect(filter);
+  filter.connect(gain);
+  gain.connect(dest);
+  noise.start(time + 0.04);
+  noise.stop(time + 0.04 + tailLen);
+}
+
+const playFns = [playKick, playSnare, playHihat, playClap];
+
+// --- Lookahead Scheduler (Chris Wilson pattern) ---
+const LOOKAHEAD = 0.1;   // seconds
+const INTERVAL = 25;     // ms
+
+function nextNote() {
+  const secondsPerBeat = 60.0 / bpm;
+  const secondsPerStep = secondsPerBeat / 4; // 16th notes
+  nextNoteTime += secondsPerStep;
+  currentStep = (currentStep + 1) % STEPS;
+}
+
+function scheduleNote(step, time) {
+  for (let v = 0; v < VOICES.length; v++) {
+    if (pattern[v][step]) {
+      playFns[v](time, gainNodes[v]);
+    }
+  }
+}
+
+function scheduler() {
+  while (nextNoteTime < audioCtx.currentTime + LOOKAHEAD) {
+    scheduleNote(currentStep, nextNoteTime);
+    drawStep(currentStep);
+    nextNote();
+  }
+  timerID = setTimeout(scheduler, INTERVAL);
+}
+
+function startPlayback() {
+  initAudio();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  isPlaying = true;
+  currentStep = 0;
+  nextNoteTime = audioCtx.currentTime;
+  scheduler();
+  playBtn.classList.add('playing');
+  playBtn.innerHTML = '&#9632;';
+}
+
+function stopPlayback() {
+  isPlaying = false;
+  clearTimeout(timerID);
+  playBtn.classList.remove('playing');
+  playBtn.innerHTML = '&#9654;';
+  clearStepHighlight();
+}
+
+// --- UI ---
+const grid = document.getElementById('grid');
+const playBtn = document.getElementById('playBtn');
+const bpmSlider = document.getElementById('bpmSlider');
+const bpmValue = document.getElementById('bpmValue');
+const padEls = [];
+
+VOICES.forEach((voice, v) => {
+  const row = document.createElement('div');
+  row.className = 'grid-row';
+
+  const label = document.createElement('div');
+  label.className = 'row-label';
+  label.textContent = voice.name;
+  label.style.color = voice.color;
+  row.appendChild(label);
+
+  const pads = document.createElement('div');
+  pads.className = 'pads';
+  const rowPads = [];
+
+  for (let s = 0; s < STEPS; s++) {
+    const pad = document.createElement('div');
+    pad.className = `pad ${voice.key}`;
+    pad.addEventListener('pointerdown', () => {
+      initAudio();
+      pattern[v][s] = !pattern[v][s];
+      pad.classList.toggle('on');
+      if (pattern[v][s]) {
+        // Preview sound
+        playFns[v](audioCtx.currentTime, gainNodes[v]);
+        pad.style.transform = 'scale(0.9)';
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => { pad.style.transform = ''; });
+        });
+      }
+    });
+    pads.appendChild(pad);
+    rowPads.push(pad);
+  }
+  row.appendChild(pads);
+
+  // Volume slider
+  const volControl = document.createElement('div');
+  volControl.className = 'vol-control';
+  const volSlider = document.createElement('input');
+  volSlider.type = 'range';
+  volSlider.min = '0';
+  volSlider.max = '100';
+  volSlider.value = '80';
+  volSlider.addEventListener('input', () => {
+    volumes[v] = volSlider.value / 100;
+    if (gainNodes[v]) gainNodes[v].gain.value = volumes[v];
+  });
+  volControl.appendChild(volSlider);
+  row.appendChild(volControl);
+
+  grid.appendChild(row);
+  padEls.push(rowPads);
+});
+
+let lastDrawnStep = -1;
+function drawStep(step) {
+  if (lastDrawnStep === step) return;
+  if (lastDrawnStep >= 0) {
+    for (let v = 0; v < VOICES.length; v++) {
+      padEls[v][lastDrawnStep].classList.remove('current-step');
+    }
+  }
+  for (let v = 0; v < VOICES.length; v++) {
+    padEls[v][step].classList.add('current-step');
+  }
+  lastDrawnStep = step;
+}
+
+function clearStepHighlight() {
+  if (lastDrawnStep >= 0) {
+    for (let v = 0; v < VOICES.length; v++) {
+      padEls[v][lastDrawnStep].classList.remove('current-step');
+    }
+  }
+  lastDrawnStep = -1;
+}
+
+playBtn.addEventListener('click', () => {
+  if (isPlaying) stopPlayback(); else startPlayback();
+});
+
+bpmSlider.addEventListener('input', () => {
+  bpm = parseInt(bpmSlider.value);
+  bpmValue.textContent = bpm;
+});
+</script>
+
+</body>
+</html>
